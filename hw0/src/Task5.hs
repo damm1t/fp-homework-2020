@@ -14,11 +14,11 @@ zero _ x = x
 succChurch :: Nat a -> Nat a
 succChurch n f x = n f (f x)
 
--- | The 'succChurch' function is addition in Church numerals
+-- | The 'churchPlus' function is addition in Church numerals
 churchPlus :: Nat a -> Nat a -> Nat a
 churchPlus n m f x = n f (m f x)
 
--- | The 'succChurch' function is multiplication in Church numerals
+-- | The 'churchMult' function is multiplication in Church numerals
 churchMult :: Nat a -> Nat a -> Nat a
 churchMult n m f = n (m f)
 
