@@ -16,11 +16,11 @@ succChurch n f x = n f (f x)
 
 -- | The 'succChurch' function is addition in Church numerals
 churchPlus :: Nat a -> Nat a -> Nat a
-churchPlus m n f x = m f (n f x)
+churchPlus n m f x = n f (m f x)
 
 -- | The 'succChurch' function is multiplication in Church numerals
 churchMult :: Nat a -> Nat a -> Nat a
-churchMult m n f = m (n f)
+churchMult n m f = n (m f)
 
 -- | The 'churchToInt' function returns integer by Church numeral
 churchToInt :: Nat Integer -> Integer

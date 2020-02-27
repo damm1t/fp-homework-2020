@@ -18,11 +18,11 @@ doubleNeg x f = f x
 excludedNeg :: Neg (Neg (Either a (Neg a)))
 excludedNeg f = (f . Right) (f . Left)
 
--- unprovable in intuitionistic logic.
+-- | Unprovable in intuitionistic logic.
 pierce :: ((a -> b) -> a) -> a
 pierce = undefined
 
--- unprovable in intuitionistic logic.
+-- | Unprovable in intuitionistic logic.
 doubleNegElim :: Neg (Neg a) -> a
 doubleNegElim = undefined
 
