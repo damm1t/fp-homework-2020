@@ -1,9 +1,9 @@
 import Test.Tasty
---import Test.Tasty.QuickCheck as QC
---import Test.Tasty.SmallCheck as SC
 
+import TestError
 import Task1_1Test
 import Task1_2Test
 
 main :: IO()
-main = defaultMain $ testGroup "tests for hw 1" [task1_1Test, task1_2Test]
+main = natTestTree >>= \ unitTests ->
+  let allTests = testGroup " All tests" [task1_1Test, unitTests, task1_2Test] in defaultMain allTests

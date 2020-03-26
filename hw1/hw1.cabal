@@ -18,7 +18,7 @@ tested-with:         GHC == 8.0.1
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Task1_1 Task1_2
+  exposed-modules:     Task1_1 Task1_2 Task1_3 Task2_2
   ghc-options:         -Wall
   build-depends:       base >= 4.9 && < 5
   default-language:    Haskell2010
@@ -27,11 +27,16 @@ test-suite hw1-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       Task1_1Test Task1_2Test
+  other-modules:       Task1_1Test Task1_2Test TestError
   ghc-options:         -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base >= 4.9 && <5
                      , tasty
                      , tasty-hunit
+                     , hspec
+                     , hedgehog
                      , tasty-quickcheck
+                     , hspec-hedgehog
+                     , tasty-hspec
+                     , tasty-hedgehog
                      , hw1
   default-language:    Haskell2010
