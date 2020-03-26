@@ -27,7 +27,7 @@ test-suite hw1-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       Test1_1 Test1_2 Test2_2 Test3_1 TestError
+  other-modules:       Test1_1 Test1_2 Test2_2 Test3_1 TestError TestTreeStructure
   ghc-options:         -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base >= 4.9 && <5
                      , tasty

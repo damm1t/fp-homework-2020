@@ -7,7 +7,7 @@ module Tree
   , emptyTree
   , size
   , find
-  , insert
+  , add
   , fromList
   , toList
   , delete
@@ -44,29 +44,29 @@ size tree = List.length (list tree) + size (left tree) + size (right tree)
 -- return 'Nothing' if input element isn't in input 'Tree'
 find :: (Ord a) => Tree a -> a -> Maybe (List.NonEmpty a)
 find Leaf _ = Nothing
-find Tree{..} x = case compare (List.head list) x of
+find Tree{..} x = case compare x (List.head list) of
   LT -> find left x
   GT -> find right x
   EQ -> Just list
 
--- | The function 'insert' insert input element 
+-- | The function 'insert' insert input element
 -- to input 'Tree'
-insert :: (Ord a) => Tree a -> a -> Tree a
-insert Leaf insItem = Tree {list = insItem List.:| [], left = Leaf, right = Leaf}
-insert Tree{..} insItem =
-  case compare (List.head list) insItem of
+add :: (Ord a) => Tree a -> a -> Tree a
+add Leaf insItem = Tree {list = insItem List.:| [], left = Leaf, right = Leaf}
+add Tree{..} insItem =
+  case compare insItem (List.head list) of
     LT ->
-      let newLeft = insert left insItem
+      let newLeft = add left insItem
        in Tree list newLeft right
     EQ -> let newList = List.cons insItem list
        in Tree newList left right
     GT ->
-      let newRight = insert right insItem
+      let newRight = add right insItem
        in Tree list left newRight
 
 -- | The function 'fromList' create 'Tree' by input list
 fromList :: (Ord a) => [a] -> Tree a
-fromList = foldl insert Leaf
+fromList = foldl add Leaf
 
 -- | The function 'fromList' create list by input 'Tree'
 toList :: Tree a -> [a]
