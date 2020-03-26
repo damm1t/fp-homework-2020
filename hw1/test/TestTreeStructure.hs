@@ -61,4 +61,5 @@ delTest =
     "add Tests"
     [ testCase "del 0" $  show (delete addResTree 0) @=? show val
     , testCase "del 1" $  show (delete addResTree2 1) @=? show val
+    , testCase "del with ins" $  show (delete (add findTree 100) 100) @=? show findTree
     ]
