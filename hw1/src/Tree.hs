@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Task1_3
+module Tree
   (Tree(..)
   , emptyTree
   , size
@@ -15,22 +15,33 @@ module Task1_3
 
 import qualified Data.List.NonEmpty as List
 
-data Tree a = Leaf
-  | Tree { list :: List.NonEmpty a, left :: Tree a, right :: Tree a }
-    deriving (Show)
+-- | Constructor of binary tree structure
+data Tree a =
+  Leaf    -- Constructor empty leaf node
+  | Tree  -- Constructor non empty node
+    { list :: List.NonEmpty a, left :: Tree a, right :: Tree a }
+  deriving (Show)
 
+-- | The function 'emptyTree'
+-- return 'Bool' is input 'Tree' empty
 emptyTree :: Tree a -> Bool
 emptyTree Leaf = True
 emptyTree _    = False
 
+-- | The function 'empty'
+-- return 'Bool' is input list empty
 empty :: [a] -> Bool
 empty [] = True
 empty _ = False
 
+-- | The function 'size'
+-- return 'Int' size elements of input 'Tree'
 size :: Tree a -> Int
 size Leaf = 0
 size tree = List.length (list tree) + size (left tree) + size (right tree)
 
+-- | The function 'find' tries to find input node
+-- return 'Nothing' if input element isn't in input 'Tree'
 find :: (Ord a) => Tree a -> a -> Maybe (List.NonEmpty a)
 find Leaf _ = Nothing
 find Tree{..} x = case compare (List.head list) x of
@@ -38,7 +49,8 @@ find Tree{..} x = case compare (List.head list) x of
   GT -> find right x
   EQ -> Just list
 
-
+-- | The function 'insert' insert input element 
+-- to input 'Tree'
 insert :: (Ord a) => Tree a -> a -> Tree a
 insert Leaf insItem = Tree {list = insItem List.:| [], left = Leaf, right = Leaf}
 insert Tree{..} insItem =
@@ -52,13 +64,16 @@ insert Tree{..} insItem =
       let newRight = insert right insItem
        in Tree list left newRight
 
-
+-- | The function 'fromList' create 'Tree' by input list
 fromList :: (Ord a) => [a] -> Tree a
 fromList = foldl insert Leaf
 
+-- | The function 'fromList' create list by input 'Tree'
 toList :: Tree a -> [a]
 toList = foldr (:) []
 
+-- | the function 'delete' delete input element
+-- from input 'Tree' if this element contains
 delete :: Ord a => Tree a -> a -> Tree a
 delete Leaf _ = Leaf
 delete Tree{..} delItem = case compare delItem (List.head list) of
@@ -95,5 +110,3 @@ instance Foldable Tree where
     let rightFolded = foldr f z (right tree)
         elemFolded = foldr f rightFolded (list tree)
      in foldr f elemFolded (left tree)
-     
-     

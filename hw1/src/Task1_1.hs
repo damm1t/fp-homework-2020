@@ -7,6 +7,7 @@ module Task1_1
   , daysToParty
   )  where
 
+-- | Structure day of week
 data Day = Monday
   | Tuesday
   | Wednesday
@@ -46,21 +47,29 @@ instance Enum Day where
     6 -> Sunday
     _ -> error "Incorrect toEnum"
 
-
+-- | The function 'nextDay' 
+-- returns 'Day' after input 'Day'
 nextDay :: Day -> Day
 nextDay = succ
 
+-- | The function 'afterDays'
+-- returns 'Day' after input period 
+-- which starts with input 'Day'
 afterDays :: Day -> Int -> Day
 afterDays day count =
   let countDiff = (count + 7) `mod` 7
   in toEnum ((fromEnum day + countDiff) `mod` 7)
 
+-- | The function 'isWeekend'
+-- returns 'Bool' is the input 'Day' weekend
 isWeekend :: Day -> Bool
 isWeekend = \case
   Saturday -> True
   Sunday   -> True
   _        -> False
 
-
+-- | The function 'daysToParty'
+-- returns 'Int' count of days to 'Friday'
+-- by input 'Day'
 daysToParty :: Day -> Int
 daysToParty day = (4 + 7 - fromEnum day) `mod` 7

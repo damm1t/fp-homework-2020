@@ -1,11 +1,11 @@
-module Task1_2Test where
+module Test1_2 where
 
 import Task1_2
 import Test.Tasty
 import Test.Tasty.HUnit
 
-task1_2Test :: TestTree
-task1_2Test = testGroup "Task 1-2 tests" [
+test1_2 :: TestTree
+test1_2 = testGroup "Task 1-2 tests" [
   addNatTest
   , mulNatTest
   , subNatTest

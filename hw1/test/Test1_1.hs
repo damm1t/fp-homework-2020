@@ -1,11 +1,11 @@
-module Task1_1Test where
+module Test1_1 where
 
 import Task1_1
 import Test.Tasty
 import Test.Tasty.HUnit
 
-task1_1Test :: TestTree
-task1_1Test = testGroup "Task 1-1 tests" [nextDayTest, afterDaysTest, isWeekendTest, daysToPartyTest]
+test1_1 :: TestTree
+test1_1 = testGroup "Task 1-1 tests" [nextDayTest, afterDaysTest, isWeekendTest, daysToPartyTest]
 
 nextDayTest :: TestTree
 nextDayTest =

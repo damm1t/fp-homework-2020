@@ -1,22 +1,27 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE OverloadedLists #-}
-
 module Task2_2
-  (splitOn
+  (NonEmpty(..)
+  , splitOn
   , joinWith
   ) where
 
 import Data.List (foldl')
 
+-- | Constructor of non empty list
 data NonEmpty a = a :| [a] deriving (Show)
 
+-- | The function 'splitOn' split list @[a]@ by parameter @a@
+-- return 'NonEmpty' list @[a]@
 splitOn :: (Eq a) => a -> [a] -> NonEmpty [a]
-splitOn element list = foldr folder ([] :| []) list
+splitOn element list = let  in foldr foldrArr ([] :| []) list
   where
-    folder c (x :| xs)
-      | c == element = [] :| (x:xs)
-      | otherwise  = (c:x) :| xs
+    foldrArr c (xHead :| xTail)
+          | c == element = [] :| (xHead:xTail)
+          | otherwise  = (c:xHead) :| xTail
 
+-- | The function 'joinWith' join 'NonEmpty' list @[a]@ with parameter @a@
+-- return list @[a]@
 joinWith :: a -> NonEmpty [a] -> [a]
 joinWith _ (x :| []) = x
-joinWith element (x :| xs) = foldl' (\a b -> a ++ (element:b)) x xs
+joinWith element (xHead :| xTail) = foldl' joinEl xHead xTail
+  where
+    joinEl curHead curTail = curHead ++ (element : curTail)
