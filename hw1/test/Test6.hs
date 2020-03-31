@@ -10,6 +10,7 @@ import Task6_2
 import Task6_3
 import Data.Char (isLower, toUpper, isDigit)
 import Test.Tasty.QuickCheck (property)
+import Control.Applicative ((<|>))
 
 parserTree :: IO TestTree
 parserTree = testSpec "Parser tests" parserSpec
@@ -44,6 +45,16 @@ parserSpec = describe "Stream tests" $ do
 
   it "second appicative fail" $
     runParser ((++) <$> stream "abra" <*> stream "cadabla") "abracadabra"
+    `shouldBe`
+    Nothing
+
+  it "alternative" $
+    runParser (element 'y' <|> element 'x') "xyz"
+    `shouldBe`
+    Just ('x',"yz")
+
+  it "alternative fail" $
+    runParser (element 'y' <|> element 'x') "zxy"
     `shouldBe`
     Nothing
 
@@ -203,4 +214,4 @@ numberSpec =
       Just (-101 :: Int, "")
 
     it "parse prefix numbers" $
-      property checkNumber    
+      property checkNumber
