@@ -8,7 +8,7 @@ import Test.Tasty.Hspec
 import Task6_1
 import Task6_2
 import Task6_3
-import Data.Char (isLower, toUpper, isDigit)
+import Data.Char (isLower, toUpper, isDigit, isUpper)
 import Test.Tasty.QuickCheck (property)
 import Control.Applicative ((<|>))
 
@@ -57,7 +57,17 @@ parserSpec = describe "Stream tests" $ do
     runParser (element 'y' <|> element 'x') "zxy"
     `shouldBe`
     Nothing
-
+    
+  it "monad" $
+      runParser (satisfy isUpper >>= element) "XXY"
+      `shouldBe`
+      Just ('X',"Y")
+      
+  it "monad fail" $
+    runParser (satisfy isUpper >>= element) "XYZ"
+    `shouldBe`
+    Nothing
+      
   it "ok test with string" $ property checkOk
 
   it "parse eof" $
