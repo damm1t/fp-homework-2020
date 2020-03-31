@@ -17,8 +17,9 @@ cabal-version:       >=1.10
 tested-with:         GHC == 8.0.1
 
 library
-  hs-source-dirs:      src
-  exposed-modules:     Task1_1 Task1_2 Tree Task2_2 Task3_1
+  hs-source-dirs:      src, hw1_second_chance
+  exposed-modules:     Task1_1, Task1_2, Tree, Task2_2,
+                       Task3_1, Task6_1, Task6_2, Task6_3
   ghc-options:         -Wall
   build-depends:       base >= 4.9 && < 5
   default-language:    Haskell2010
@@ -27,7 +28,8 @@ test-suite hw1-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       Test1_1 Test1_2 Test2_2 Test3_1 TestError TestTreeStructure
+  other-modules:       Test1_1, Test1_2, Test2_2,
+                       Test3_1, TestError, TestTreeStructure, Test6
   ghc-options:         -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base >= 4.9 && <5
                      , tasty

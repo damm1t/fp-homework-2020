@@ -6,7 +6,22 @@ import Test1_2
 import Test2_2
 import Test3_1
 import TestTreeStructure
+import Test6
 
 main :: IO()
-main = maybeConcatTree >>= \ unitTests1 -> natTestTree >>= \ unitTests2 ->
-  let allTests = testGroup " All tests" [test1_1, unitTests2, test1_2, test1_3, test2_2, unitTests1] in defaultMain allTests
+main = parserTree >>= \ unitParserTests ->
+  bracketSequenceTree >>= \ unitBracketTests ->
+  numberParserTree  >>= \ unitNumTests ->
+  maybeConcatTree >>= \ unitConcatTests ->
+  natTestTree >>= \ unitNatTests -> 
+      let allTests = testGroup "All tests" [ test1_1
+                                           , unitNatTests
+                                           , test1_2
+                                           , test1_3
+                                           , test2_2
+                                           , unitConcatTests
+                                           , unitParserTests
+                                           , unitBracketTests
+                                           , unitNumTests
+                                           ] 
+      in defaultMain allTests
