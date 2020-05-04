@@ -1,6 +1,10 @@
 module Main where
 
-import Lib
+import FileDirectory
+import Commands
 
 main :: IO ()
-main = someFunc
+
+main = do
+  fs <- readFS rootDir
+  commandsParser (fs, rootDir)
