@@ -12,6 +12,9 @@ extra-deps:
   - tasty-hspec-1.1.5.1
   - hspec-hedgehog-0.0.1.1
   - split-0.2.3.4
+  - cursor-0.0.0.1
+  - validity-0.8.0.0
+  - filepath-1.4.2.1
 
 flags: {}
 

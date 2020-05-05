@@ -1,65 +1,61 @@
-{-# LANGUAGE RecordWildCards #-}
 module Commands where
-import FileDirectory
 import Control.Monad.State
 import Control.Monad.Except
-import Data.List.Split
-import System.Directory (doesDirectoryExist)
-import Data.List (isPrefixOf)
 import System.IO (hFlush, stdout)
+import Tui
+import FileDirectory
+import System.FilePath.Posix
 
 type TreeMonad = (StateT (FilesTree, FilePath) (Except String))
 
 commandsParser :: (FilesTree, FilePath) -> IO ()
 commandsParser ini = do
-  putStr $ snd ini ++ "> "
+  putStr $ snd ini ++ " > "
   hFlush stdout
   input <- getLine
   let arrInput = words input
   let command = head arrInput
-  if command == "exit" then
-      putStrLn "stopping"
-  else do
-    let valDir = arrInput !! 1
-    case runExcept (runStateT (execCommand valDir) ini) of
-      Right pr -> commandsParser $ snd pr
-      Left msg -> do
-        print msg
+  case command of
+    "exit" -> putStrLn "stopping"
+    "cd" ->
+      do
+        let valDir = arrInput !! 1
+        case runExcept (runStateT (execCommand valDir) ini) of
+          Right pr -> commandsParser $ snd pr
+          Left msg -> do
+            print msg
+            commandsParser ini
+    "dir" ->
+      do
+        tui ini
+        commandsParser ini
+    _ ->
+      do
+        putStrLn "error"
         commandsParser ini
 
-
-
-{-getDirList :: FilePath -> FilePath -> [FilePath]
-getDirList "" ('/':list) = getDirList "" list
-getDirList "" dirs = splitOn "/" dirs
-getDirList (x:xs) (y:ys) = getDirList xs ys-}
-
-getCurrentTree :: FilesTree -> FilePath -> FilesTree
-getCurrentTree curTree@Dir{..} fPath
-  | path == fPath = curTree
-  | otherwise = getNext fPath children
-
-getNext :: FilePath -> [FilesTree] -> FilesTree
-getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
-                          then
-                            getCurrentTree next fPath
-                          else
-                            getNext fPath xs
-
-hasNext :: FilePath -> [FilesTree] -> Bool
-hasNext fPath
-  = foldr
-      (\ next -> (||) (isDir next && isPrefixOf (path next) fPath))
-      False
-
+-- cd
 execCommand :: String -> TreeMonad ()
 execCommand val = do
   pair <- get
   let tree = fst pair
-  let path = snd pair
-  let curTree = getCurrentTree tree path
-  let isExist = hasNext (path ++ "/" ++ val) (children curTree)
-  if isExist then
-    modify (\(x, y) -> (x, y ++ "/" ++ val))
-  else
-    throwError $ "-> " ++ val ++ " <-Not a dirictory"
+  let curPath = snd pair
+
+  case val of
+    ".." ->
+      if curPath == path tree then
+          throwError "Can't go up from current dir"
+      else
+          modify (\ (x, _) -> (x, takeDirectory curPath))
+
+    "." ->
+      modify (\ (x, _) -> (x, path tree))
+    _ -> 
+      do
+        let curTree = getCurrentTree tree curPath
+        let isExist = hasNext (curPath ++ "/" ++ val) (children curTree)
+        if isExist then
+          modify (\(x, y) -> (x, y ++ "/" ++ val))
+        else
+          throwError $ "-> " ++ val ++ " <-Not a dirictory"
+

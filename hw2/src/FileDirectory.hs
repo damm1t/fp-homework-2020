@@ -5,16 +5,17 @@ module FileDirectory
   , readFS
   , rootDir
   , isDir
+  , printFT
+  , getTreeName
+  , getCurrentTree
+  , getNext
+  , hasNext
   )where
 
 import System.Directory(listDirectory, doesDirectoryExist)
 import Control.Monad.Cont (forM_)
-import Options.Applicative
-import Options.Applicative.Help as AH
-import Options.Applicative.Types as AT
-import System.Environment (getArgs, getProgName)
-import System.Exit (exitWith, ExitCode(..))
-import System.IO (hPutStr, stderr)
+import System.FilePath.Posix
+import Data.List (isPrefixOf)
 
 data FilesTree = File { path :: FilePath }
                | Dir { children  :: [FilesTree]
@@ -24,6 +25,28 @@ isDir :: FilesTree -> Bool
 isDir Dir{..} = True
 isDir File{..} = False
 
+getTreeName :: FilesTree -> FilePath
+getTreeName Dir{..} = takeBaseName path
+getTreeName File{..} = takeFileName path
+
+getCurrentTree :: FilesTree -> FilePath -> FilesTree
+getCurrentTree curTree@Dir{..} fPath
+  | path == fPath = curTree
+  | otherwise = getNext fPath children
+
+getNext :: FilePath -> [FilesTree] -> FilesTree
+getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
+                          then
+                            getCurrentTree next fPath
+                          else
+                            getNext fPath xs
+
+hasNext :: FilePath -> [FilesTree] -> Bool
+hasNext fPath
+  = foldr
+      (\ next -> (||) (isDir next && isPrefixOf (path next) fPath))
+      False
+
 printFT :: Int -> FilesTree -> IO()
 printFT cnt File{..}  = putStrLn $ duplicate "-" cnt ++ ">" ++ path
 printFT cnt Dir{..}  = do
@@ -31,7 +54,7 @@ printFT cnt Dir{..}  = do
   forM_ children (printFT (cnt + 1))
 
 duplicate :: String -> Int -> String
-duplicate string n = concat $ replicate n string
+duplicate string n = Prelude.concat $ replicate n string
 
 rootDir :: FilePath
 rootDir = "/home/damm1t/Workspace/TestFolder"
