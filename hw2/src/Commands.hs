@@ -2,7 +2,7 @@ module Commands where
 import Control.Monad.State
 import Control.Monad.Except
 import System.IO (hFlush, stdout)
-import Tui
+import qualified Tui as T
 import FileDirectory
 import System.FilePath.Posix
 
@@ -27,8 +27,18 @@ commandsParser ini = do
             commandsParser ini
     "dir" ->
       do
-        tui ini
+        T.tui ini
         commandsParser ini
+    "ls" ->
+      do
+        let valDir = arrInput !! 1
+        case runExcept (runStateT (execCommand valDir) ini) of
+          Right pr -> do
+            T.tui $ snd pr
+            commandsParser ini
+          Left msg -> do
+            print msg
+            commandsParser ini
     _ ->
       do
         putStrLn "error"
