@@ -2,6 +2,7 @@
 
 module FileDirectory 
   ( FilesTree(..)
+  , TreeMonad
   , readFS
   , rootDir
   , isDir
@@ -9,21 +10,31 @@ module FileDirectory
   , getTreeName
   , getCurrentTree
   , getNext
-  , hasNext
+  , hasNextDir
+  , hasFile
   )where
 
 import System.Directory(listDirectory, doesDirectoryExist)
 import Control.Monad.Cont (forM_)
 import System.FilePath.Posix
 import Data.List (isPrefixOf)
+import Control.Monad.State (StateT)
+import Control.Monad.Except (Except)
+import qualified Data.ByteString.Char8 as BS
 
-data FilesTree = File { path :: FilePath }
+type TreeMonad = (StateT (FilesTree, FilePath) (Except String))
+
+data FilesTree = File { path :: FilePath
+                      , fileData :: BS.ByteString }
                | Dir { children  :: [FilesTree]
                      , path :: FilePath } deriving (Eq, Show)
 
 isDir :: FilesTree -> Bool
 isDir Dir{..} = True
 isDir File{..} = False
+
+isFile :: FilesTree -> Bool
+isFile = not . isDir
 
 getTreeName :: FilesTree -> FilePath
 getTreeName Dir{..} = takeBaseName path
@@ -41,14 +52,22 @@ getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
                           else
                             getNext fPath xs
 
-hasNext :: FilePath -> [FilesTree] -> Bool
-hasNext fPath
+hasNextDir :: FilePath -> [FilesTree] -> Bool
+hasNextDir fPath
   = foldr
-      (\ next -> (||) (isDir next && isPrefixOf (path next) fPath))
+      (\ next -> (||) (isDir next &&  path next == fPath))
       False
+      
+hasFile :: FilePath -> [FilesTree] -> Maybe FilesTree
+hasFile fPath [] = Nothing
+hasFile fPath (tr:xs) = if isFile tr && path tr == fPath 
+                        then Just tr
+                        else hasFile fPath xs
 
 printFT :: Int -> FilesTree -> IO()
-printFT cnt File{..}  = putStrLn $ duplicate "-" cnt ++ ">" ++ path
+printFT cnt File{..}  = do
+  putStrLn $ duplicate "-" cnt ++ ">" ++ path
+  BS.putStrLn fileData
 printFT cnt Dir{..}  = do
   putStrLn $ duplicate "-" cnt ++ ">" ++ path
   forM_ children (printFT (cnt + 1))
@@ -65,8 +84,9 @@ readFS curPath = do
   if isDirExist then do
     list <- readDir curPath
     return $ Dir list curPath
-  else
-    return $ File curPath
+  else do
+    contents <- BS.readFile curPath
+    return $ File curPath (BS.length contents `seq` contents)
 
 readDir :: FilePath -> IO [FilesTree]
 readDir curPath = do listDirs <- listDirectory curPath
@@ -77,30 +97,3 @@ testFunc :: IO ()
 testFunc = do
   fs <- readFS rootDir
   printFT 0 fs
-  
---opts :: ParserInfo Command
---opts = info (commands <**> helper) idm
-{-
-
-
-
-data ParamsCD = ParamsCD { dir :: String
-                , flag :: Bool
-                }
-runWithOptions :: ParamsCD -> IO ()
-runWithOptions = do
-  isDirExist <- doesDirectoryExist curPath
-  if isDirExist then do
-    list <- readDir curPath
-    return $ Dir list curPath
-  else
-    return $ File curPath
-
-cd :: IO ()
-cd = execParserWithHelp defaultPrefs opts >>= runWithOptions-- execParser opts >>= runWithOptions
-  where
-    parser = MyApp <$> argument str (metavar "NAME")
-                   <*> switch (short 'e' <>
-                               long "excited" <>
-                               help "Run in excited mode")
-    opts = info parser mempty-}

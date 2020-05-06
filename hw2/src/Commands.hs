@@ -1,71 +1,91 @@
+{-# LANGUAGE RecordWildCards #-}
 module Commands where
 import Control.Monad.State
 import Control.Monad.Except
 import System.IO (hFlush, stdout)
-import qualified Tui as T
+import qualified DirTui as DT
+import qualified FileTui as FT
 import FileDirectory
-import System.FilePath.Posix
-
-type TreeMonad = (StateT (FilesTree, FilePath) (Except String))
+import qualified DirParser as CD
+import qualified FileParser as FP
+import Options.Applicative (getParseResult)
 
 commandsParser :: (FilesTree, FilePath) -> IO ()
 commandsParser ini = do
   putStr $ snd ini ++ " > "
   hFlush stdout
   input <- getLine
-  let arrInput = words input
-  let command = head arrInput
+  (command:args) <- getArgs input
   case command of
     "exit" -> putStrLn "stopping"
-    "cd" ->
-      do
-        let valDir = arrInput !! 1
-        case runExcept (runStateT (execCommand valDir) ini) of
-          Right pr -> commandsParser $ snd pr
-          Left msg -> do
-            print msg
-            commandsParser ini
+    "cd" -> makeCD ini args
     "dir" ->
       do
-        T.tui ini
+        DT.tui ini
         commandsParser ini
-    "ls" ->
-      do
-        let valDir = arrInput !! 1
-        case runExcept (runStateT (execCommand valDir) ini) of
-          Right pr -> do
-            T.tui $ snd pr
-            commandsParser ini
-          Left msg -> do
-            print msg
-            commandsParser ini
+    "ls" -> makeLS ini args
+    "cat" -> openFile ini args
+    "fail" -> commandsParser ini
     _ ->
       do
         putStrLn "error"
         commandsParser ini
 
--- cd
-execCommand :: String -> TreeMonad ()
-execCommand val = do
-  pair <- get
-  let tree = fst pair
-  let curPath = snd pair
+getArgs :: String -> IO [String]
+getArgs "" = do
+  putStrLn "Please, enter command or use help"
+  return ["fail"]
+getArgs s = return $ words s
 
-  case val of
-    ".." ->
-      if curPath == path tree then
-          throwError "Can't go up from current dir"
-      else
-          modify (\ (x, _) -> (x, takeDirectory curPath))
+makeCD :: (FilesTree, FilePath) -> [String] -> IO ()
+makeCD ini args = do
+  let res = CD.parse args
+  case getParseResult res of
+   Just CD.Params{..} ->
+     case runExcept (runStateT (CD.execCommand folder) ini) of
+       Right pr -> commandsParser $ snd pr
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       CD.printFail res
+       commandsParser ini
 
-    "." ->
-      modify (\ (x, _) -> (x, path tree))
-    _ -> 
+makeLS :: (FilesTree, FilePath) -> [String] -> IO ()
+makeLS ini args = do
+  let res = CD.parse args
+  case getParseResult res of
+    Just CD.Params{..} ->
+      case runExcept (runStateT (CD.execCommand folder) ini) of
+        Right pr -> do
+          DT.tui $ snd pr
+          commandsParser ini
+        Left msg ->
+          do
+            putStrLn msg
+            commandsParser ini
+    Nothing ->
       do
-        let curTree = getCurrentTree tree curPath
-        let isExist = hasNext (curPath ++ "/" ++ val) (children curTree)
-        if isExist then
-          modify (\(x, y) -> (x, y ++ "/" ++ val))
-        else
-          throwError $ "-> " ++ val ++ " <-Not a dirictory"
+        CD.printFail res
+        commandsParser ini
 
+openFile :: (FilesTree, FilePath) -> [String] -> IO ()
+openFile ini args = do
+  let res = FP.parse args
+  case getParseResult res of
+   Just FP.Params{..} ->
+     case runExcept (runStateT (FP.execCommand fileName) ini) of
+       Right pr -> 
+        do
+          FT.tui $ fst pr
+          commandsParser ini
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       FP.printFail res
+       commandsParser ini
