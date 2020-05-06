@@ -4,17 +4,31 @@ import FileDirectory
 import Options.Applicative
 import Control.Monad.Except (throwError)
 import Control.Monad.State (get, modify)
-import Control.Monad.Error (Error, Error)
-import Control.Monad.Error.Class (Error)
 import qualified Data.ByteString.Char8 as BS
 
-newtype Params = Params {fileName :: String}
+newtype Params = Params {name :: String}
+
+data ParamsFile = ParamsFile { fileName :: String
+                             , addText :: String
+                             }
+
 
 parse :: String -> [String] -> ParserResult Params
 parse typeTree = execParserPure defaultPrefs opts
   where
-    var = if typeTree == "Dir" then "DIRNAME" else "FILENAME" 
+    var = case typeTree of
+      "Dir" -> "DIRNAME"
+      "File" -> "FILENAME"
+      _ -> "DIRNAME or FILENAME"
+
     parser = Params <$> argument str (metavar var)
+    opts = info parser mempty
+
+parseWithText :: [String] -> ParserResult ParamsFile
+parseWithText = execParserPure defaultPrefs opts
+  where
+    parser = ParamsFile <$> argument str (metavar "FILENAME")
+                        <*> argument str (metavar "TEXT")
     opts = info parser mempty
 
 printFail :: ParserResult a -> IO()
@@ -56,3 +70,27 @@ execCreateFolder val = do
     Nothing -> modify (\(x, y) -> (addToTree (x, y) dir, y))
     Just File{..} -> throwError $ "File -> " ++ val ++ " <-  already exist"
     Just Dir{..} -> throwError $ "Directory -> " ++ val ++ " <- already exist"
+
+execRemove :: String -> TreeMonad ()
+execRemove val = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let delElementPath = curPath ++ "/" ++ val
+  case hasNext (curPath ++ "/" ++ val) (children curTree) of
+    Nothing -> throwError $ "File or directory -> " ++ val ++ " <- not exist"
+    Just _ -> modify (\(x, y) -> (removeFromTree (x, y) delElementPath, y))
+
+
+execAddText :: String -> String -> TreeMonad ()
+execAddText val text = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let elemPath = curPath ++ "/" ++ val
+  case hasNext (curPath ++ "/" ++ val) (children curTree) of
+    Nothing -> throwError $ "File -> " ++ val ++ " <- not exist"
+    Just File{..} -> modify (\(x, y) -> (modifyFile (x, y) elemPath text, y))
+    Just Dir{..} -> throwError $ "Directory -> " ++ val ++ " <- already exist. Please enter file name"

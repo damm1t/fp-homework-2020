@@ -12,6 +12,8 @@ module FileDirectory
   , getNext
   , hasNext
   , addToTree
+  , removeFromTree
+  , modifyFile
   )where
 
 import System.Directory(listDirectory, doesDirectoryExist)
@@ -47,9 +49,31 @@ getCurrentTree curTree@Dir{..} fPath
 
 addToTree ::  (FilesTree, FilePath) -> FilesTree -> FilesTree
 addToTree (curTree, curDir) file
-  | path curTree == curDir =  Dir (children curTree ++ [file]) (path curTree)
-  | isDir curTree && path curTree `isPrefixOf` curDir =
-      Dir (map (\child -> addToTree (child, curDir) file) (children curTree)) (path curTree)
+  | path curTree == curDir = curTree {children = children curTree ++ [file]}
+  | isDir curTree && path curTree `isPrefixOf` curDir = curTree {
+      children = map (\ child -> addToTree (child, curDir) file) (children curTree)
+    }
+  | otherwise = curTree
+
+removeFromTree :: (FilesTree, FilePath) -> FilePath -> FilesTree
+removeFromTree (curTree, curDir) file
+  | path curTree == curDir = curTree { children = removeChild file (children curTree) }
+  | isDir curTree && path curTree `isPrefixOf` curDir = curTree {
+      children = map (\child -> removeFromTree (child, curDir) file) (children curTree) 
+    }
+  | otherwise = curTree
+  where
+    removeChild :: FilePath -> [FilesTree] -> [FilesTree]
+    removeChild _ [] = []
+    removeChild x (y:ys) | x == path y = removeChild x ys
+                        | otherwise = y : removeChild x ys
+
+modifyFile :: (FilesTree, FilePath) -> FilePath -> String -> FilesTree
+modifyFile (curTree, curDir) file text
+  | path curTree == file = curTree { fileData = BS.append (fileData curTree) (BS.pack text) }
+  | isDir curTree && path curTree `isPrefixOf` curDir = curTree {
+      children = map (\child -> modifyFile (child, curDir) file text) (children curTree)
+    }
   | otherwise = curTree
 
 getNext :: FilePath -> [FilesTree] -> FilesTree
@@ -60,7 +84,7 @@ getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
                             getNext fPath xs
 
 hasNext :: FilePath -> [FilesTree] -> Maybe FilesTree
-hasNext fPath [] = Nothing
+hasNext _ [] = Nothing
 hasNext fPath (tr:xs) = if path tr == fPath
                         then Just tr
                         else hasNext fPath xs

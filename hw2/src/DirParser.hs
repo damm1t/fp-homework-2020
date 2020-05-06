@@ -6,9 +6,6 @@ import Options.Applicative
 import Control.Monad.Except (throwError)
 import Control.Monad.State (get, modify)
 import System.FilePath (takeDirectory)
-import Control.Monad.Error (Error, Error)
-import Control.Monad.Error.Class (Error)
-
 
 newtype Params = Params {folder :: String}
 

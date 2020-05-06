@@ -3,21 +3,13 @@
 
 module DirTui where
 
-import System.Directory
-
 import           Brick.AttrMap
 import           Brick.Main
 import           Brick.Types
 import           Brick.Util
-import           Brick.Widgets.Border
 import           Brick.Widgets.Core
-import           Control.Monad
-import           Control.Monad.IO.Class
-import           Data.List.NonEmpty (NonEmpty (..))
 import           Graphics.Vty.Attributes
 import           Graphics.Vty.Input.Events
-import           System.Directory
-import           System.Exit
 import Data.List (sort)
 
 import FileDirectory
