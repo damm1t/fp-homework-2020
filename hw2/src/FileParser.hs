@@ -89,6 +89,17 @@ execRemove val = do
       throwError $ "File or directory -> " ++ val ++ " <- not exist"
     Just _ ->
       modify (\(x, y) -> (removeFromTree (x, y) delElementPath, y))
+      
+execFindFile :: String -> TreeMonad BS.ByteString
+execFindFile val = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let res = findFileWithRes curTree val 
+  if res == BS.empty 
+  then throwError $ "File -> " ++ val ++ " <- not found"
+  else return res
 
 
 execAddText :: String -> String -> TreeMonad ()

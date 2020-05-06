@@ -28,6 +28,7 @@ commandsParser ini = do
     "cat" -> openFile ini args
     "fail" -> commandsParser ini
     "create-file" -> createFile ini args
+    "find-file" -> findFile ini args
     "create-folder" -> createFolder ini [unwords args]
     "remove" -> removeElement ini [unwords args]
     "write-file" ->
@@ -166,3 +167,22 @@ writeToFile ini args = do
      do
        FP.printFail res
        commandsParser ini
+       
+findFile :: (FilesTree, FilePath) -> [String] -> IO ()
+findFile ini args = do
+  let res = FP.parse "File" args
+  case getParseResult res of
+    Just FP.Params{..} ->
+      case runExcept (runStateT (FP.execFindFile name) ini) of
+        Right pr -> 
+          do
+            FT.tui $ fst pr
+            commandsParser ini
+        Left msg ->
+          do
+            putStrLn msg
+            commandsParser ini
+    Nothing ->
+      do
+        FP.printFail res
+        commandsParser ini
