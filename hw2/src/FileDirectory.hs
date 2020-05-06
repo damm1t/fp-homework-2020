@@ -10,8 +10,8 @@ module FileDirectory
   , getTreeName
   , getCurrentTree
   , getNext
-  , hasNextDir
-  , hasFile
+  , hasNext
+  , addToTree
   )where
 
 import System.Directory(listDirectory, doesDirectoryExist)
@@ -45,6 +45,13 @@ getCurrentTree curTree@Dir{..} fPath
   | path == fPath = curTree
   | otherwise = getNext fPath children
 
+addToTree ::  (FilesTree, FilePath) -> FilesTree -> FilesTree
+addToTree (curTree, curDir) file
+  | path curTree == curDir =  Dir (children curTree ++ [file]) (path curTree)
+  | isDir curTree && path curTree `isPrefixOf` curDir =
+      Dir (map (\child -> addToTree (child, curDir) file) (children curTree)) (path curTree)
+  | otherwise = curTree
+
 getNext :: FilePath -> [FilesTree] -> FilesTree
 getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
                           then
@@ -52,17 +59,11 @@ getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
                           else
                             getNext fPath xs
 
-hasNextDir :: FilePath -> [FilesTree] -> Bool
-hasNextDir fPath
-  = foldr
-      (\ next -> (||) (isDir next &&  path next == fPath))
-      False
-      
-hasFile :: FilePath -> [FilesTree] -> Maybe FilesTree
-hasFile fPath [] = Nothing
-hasFile fPath (tr:xs) = if isFile tr && path tr == fPath 
+hasNext :: FilePath -> [FilesTree] -> Maybe FilesTree
+hasNext fPath [] = Nothing
+hasNext fPath (tr:xs) = if path tr == fPath
                         then Just tr
-                        else hasFile fPath xs
+                        else hasNext fPath xs
 
 printFT :: Int -> FilesTree -> IO()
 printFT cnt File{..}  = do

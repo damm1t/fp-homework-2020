@@ -26,6 +26,8 @@ commandsParser ini = do
     "ls" -> makeLS ini args
     "cat" -> openFile ini args
     "fail" -> commandsParser ini
+    "create-file" -> createFile ini args
+    "create-folder" -> createFolder ini args
     _ ->
       do
         putStrLn "error"
@@ -73,14 +75,46 @@ makeLS ini args = do
 
 openFile :: (FilesTree, FilePath) -> [String] -> IO ()
 openFile ini args = do
-  let res = FP.parse args
+  let res = FP.parse "File" args
   case getParseResult res of
    Just FP.Params{..} ->
-     case runExcept (runStateT (FP.execCommand fileName) ini) of
-       Right pr -> 
+     case runExcept (runStateT (FP.execRead fileName) ini) of
+       Right pr ->
         do
           FT.tui $ fst pr
           commandsParser ini
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       FP.printFail res
+       commandsParser ini
+
+createFile :: (FilesTree, FilePath) -> [String] -> IO ()
+createFile ini args = do
+  let res = FP.parse "File" args
+  case getParseResult res of
+   Just FP.Params{..} ->
+     case runExcept (runStateT (FP.execCreateFile fileName) ini) of
+       Right pr -> commandsParser $ snd pr
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       FP.printFail res
+       commandsParser ini
+
+createFolder :: (FilesTree, FilePath) -> [String] -> IO ()
+createFolder ini args = do
+  let res = FP.parse "Dir" args
+  case getParseResult res of
+   Just FP.Params{..} ->
+     case runExcept (runStateT (FP.execCreateFolder fileName) ini) of
+       Right pr -> commandsParser $ snd pr
        Left msg ->
          do
            putStrLn msg

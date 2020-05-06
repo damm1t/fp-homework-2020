@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module DirParser where
 
 import FileDirectory
@@ -37,11 +38,10 @@ execCommand val = do
     _ ->
       do
         let curTree = getCurrentTree tree curPath
-        let isExist = hasNextDir (curPath ++ "/" ++ val) (children curTree)
-        if isExist then
-          modify (\(x, y) -> (x, y ++ "/" ++ val))
-        else
-          throwError $ "-> " ++ val ++ " <- Dirictory not exist"
+        case hasNext (curPath ++ "/" ++ val) (children curTree) of
+          Nothing -> throwError $ "-> " ++ val ++ " <- Dirictory not exist"
+          Just Dir{..} -> modify (\(x, y) -> (x, y ++ "/" ++ val))
+          Just File{..} -> throwError $ "File -> " ++ val ++ " <- is not a diretory"
 
 printFail :: ParserResult a -> IO()
 printFail (Failure failure) = do
