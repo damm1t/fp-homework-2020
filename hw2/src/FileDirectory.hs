@@ -1,20 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module FileDirectory 
-  ( FilesTree(..)
-  , TreeMonad
-  , readFS
-  , rootDir
-  , isDir
-  , printFT
-  , getTreeName
-  , getCurrentTree
-  , getNext
-  , hasNext
-  , addToTree
-  , removeFromTree
-  , modifyFile
-  )where
+module FileDirectory where
 
 import System.Directory(listDirectory, doesDirectoryExist)
 import Control.Monad.Cont (forM_)

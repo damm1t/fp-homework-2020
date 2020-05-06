@@ -36,7 +36,9 @@ tuiApp =
     , appAttrMap = const $ attrMap mempty [("exit", fg yellow), ("file", fg blue)]
     }
 
-data SimpleFile = SData {dataText :: String} | ExitMsg {msg :: String } deriving (Show, Eq, Ord)
+data SimpleFile = SData { dataText :: String }
+                | ExitMsg { msg :: String } 
+                deriving (Show, Eq, Ord)
 
 buildInitialState :: BS.ByteString -> IO TuiState
 buildInitialState st = do

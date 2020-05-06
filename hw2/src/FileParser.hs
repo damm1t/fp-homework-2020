@@ -12,7 +12,6 @@ data ParamsFile = ParamsFile { fileName :: String
                              , addText :: String
                              }
 
-
 parse :: String -> [String] -> ParserResult Params
 parse typeTree = execParserPure defaultPrefs opts
   where
@@ -45,7 +44,8 @@ execRead val = do
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
     Nothing -> throwError $ "File -> " ++ val ++ " <-  not exist"
     Just File{..} -> return fileData
-    Just Dir{..} -> throwError $ "Directory -> " ++ val ++ " <- is not a file"
+    Just Dir{..} ->
+      throwError $ "Directory -> " ++ val ++ " <- is not a file"
 
 execCreateFile :: String -> TreeMonad ()
 execCreateFile val = do
@@ -55,9 +55,12 @@ execCreateFile val = do
   let curTree = getCurrentTree tree curPath
   let file = File (curPath ++ "/" ++ val) BS.empty
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
-    Nothing -> modify (\(x, y) -> (addToTree (x, y) file, y))
-    Just File{..} -> throwError $ "File -> " ++ val ++ " <-  already exist"
-    Just Dir{..} -> throwError $ "Directory -> " ++ val ++ " <- already exist"
+    Nothing ->
+      modify (\(x, y) -> (addToTree (x, y) file, y))
+    Just File{..} ->
+      throwError $ "File -> " ++ val ++ " <-  already exist"
+    Just Dir{..} ->
+      throwError $ "Directory -> " ++ val ++ " <- already exist"
 
 execCreateFolder :: String -> TreeMonad ()
 execCreateFolder val = do
@@ -67,9 +70,12 @@ execCreateFolder val = do
   let curTree = getCurrentTree tree curPath
   let dir = Dir [] (curPath ++ "/" ++ val)
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
-    Nothing -> modify (\(x, y) -> (addToTree (x, y) dir, y))
-    Just File{..} -> throwError $ "File -> " ++ val ++ " <-  already exist"
-    Just Dir{..} -> throwError $ "Directory -> " ++ val ++ " <- already exist"
+    Nothing ->
+      modify (\(x, y) -> (addToTree (x, y) dir, y))
+    Just File{..} ->
+      throwError $ "File -> " ++ val ++ " <-  already exist"
+    Just Dir{..} ->
+      throwError $ "Directory -> " ++ val ++ " <- already exist"
 
 execRemove :: String -> TreeMonad ()
 execRemove val = do
@@ -79,8 +85,10 @@ execRemove val = do
   let curTree = getCurrentTree tree curPath
   let delElementPath = curPath ++ "/" ++ val
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
-    Nothing -> throwError $ "File or directory -> " ++ val ++ " <- not exist"
-    Just _ -> modify (\(x, y) -> (removeFromTree (x, y) delElementPath, y))
+    Nothing ->
+      throwError $ "File or directory -> " ++ val ++ " <- not exist"
+    Just _ ->
+      modify (\(x, y) -> (removeFromTree (x, y) delElementPath, y))
 
 
 execAddText :: String -> String -> TreeMonad ()
@@ -92,5 +100,9 @@ execAddText val text = do
   let elemPath = curPath ++ "/" ++ val
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
     Nothing -> throwError $ "File -> " ++ val ++ " <- not exist"
-    Just File{..} -> modify (\(x, y) -> (modifyFile (x, y) elemPath text, y))
-    Just Dir{..} -> throwError $ "Directory -> " ++ val ++ " <- already exist. Please enter file name"
+    Just File{..} ->
+      modify (\(x, y) -> (modifyFile (x, y) elemPath text, y))
+    Just Dir{..} ->
+      throwError $ "Directory -> "
+                   ++ val
+                   ++ " <- already exist. Please enter file name"

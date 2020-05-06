@@ -35,10 +35,16 @@ tuiApp =
     , appChooseCursor = showFirstCursor
     , appHandleEvent = handleTuiEvent
     , appStartEvent = pure
-    , appAttrMap = const $ attrMap mempty [("exit", fg yellow), ("file", fg green), ("directory", fg blue)]
+    , appAttrMap = const $ attrMap mempty [ ("exit", fg yellow)
+                                          , ("file", fg green)
+                                          , ("directory", fg blue)
+                                          ]
     }
 
-data SimpleTree = SDir {name :: String} | SFile {name :: String} | ExitMsg {msg :: String } deriving (Show, Eq, Ord)
+data SimpleTree = SDir { name :: String }
+                | SFile { name :: String }
+                | ExitMsg { msg :: String }
+                deriving (Show, Eq, Ord)
 
 toTree :: FilesTree -> SimpleTree
 toTree d@Dir{..} = SDir $ getTreeName d
