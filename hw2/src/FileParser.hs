@@ -5,6 +5,8 @@ import Options.Applicative
 import Control.Monad.Except (throwError)
 import Control.Monad.State (get, modify)
 import qualified Data.ByteString.Char8 as BS
+import Data.Time.Clock (UTCTime)
+import System.FilePath (takeExtension)
 
 newtype Params = Params {name :: String}
 
@@ -47,35 +49,60 @@ execRead val = do
     Just Dir{..} ->
       throwError $ "Directory -> " ++ val ++ " <- is not a file"
 
-execCreateFile :: String -> TreeMonad ()
-execCreateFile val = do
+createFileInfo :: FilePath -> String -> FileInfo
+createFileInfo = undefined
+
+execCreateFile :: UTCTime -> String -> TreeMonad ()
+execCreateFile curTime val = do 
   pair <- get
   let tree = fst pair
   let curPath = snd pair
   let curTree = getCurrentTree tree curPath
-  let file = File (curPath ++ "/" ++ val) BS.empty
+  let resPath = curPath ++ "/" ++ val
+  let curPerm = getTreePerm curTree
+  let file
+        = File
+            { path = resPath, fileData = BS.empty
+            , fileInfo = FileInfo
+                          { filePath = resPath
+                          , filePerm = curPerm
+                          , ext = takeExtension resPath
+                          , fileTime = curTime
+                          , fileSize = 0
+                          }
+             }
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
-    Nothing ->
-      modify (\(x, y) -> (addToTree (x, y) file, y))
-    Just File{..} ->
-      throwError $ "File -> " ++ val ++ " <-  already exist"
-    Just Dir{..} ->
-      throwError $ "Directory -> " ++ val ++ " <- already exist"
+    Nothing -> modify (\ (x, y) -> (addToTree (x, y) file, y))
+    Just File {..}
+      -> throwError $ "File -> " ++ val ++ " <-  already exist"
+    Just Dir {..}
+      -> throwError $ "Directory -> " ++ val ++ " <- already exist"
 
 execCreateFolder :: String -> TreeMonad ()
-execCreateFolder val = do
-  pair <- get
-  let tree = fst pair
-  let curPath = snd pair
-  let curTree = getCurrentTree tree curPath
-  let dir = Dir [] (curPath ++ "/" ++ val)
-  case hasNext (curPath ++ "/" ++ val) (children curTree) of
-    Nothing ->
-      modify (\(x, y) -> (addToTree (x, y) dir, y))
-    Just File{..} ->
-      throwError $ "File -> " ++ val ++ " <-  already exist"
-    Just Dir{..} ->
-      throwError $ "Directory -> " ++ val ++ " <- already exist"
+execCreateFolder val = 
+  do pair <- get
+     let tree = fst pair
+     let curPath = snd pair
+     let curTree = getCurrentTree tree curPath
+     let resPath = curPath ++ "/" ++ val
+     let curPerm = getTreePerm curTree
+     let dir
+           = Dir
+               { path = resPath
+               , children = []
+               , dirInfo = DirInfo
+                            { dirPath = resPath
+                            , dirPerm = curPerm
+                            , dirSize = 0
+                            , dirCount = 0
+                            }
+               }
+     case hasNext (curPath ++ "/" ++ val) (children curTree) of
+       Nothing -> modify (\ (x, y) -> (addToTree (x, y) dir, y))
+       Just File {..}
+         -> throwError $ "File -> " ++ val ++ " <-  already exist"
+       Just Dir {..}
+         -> throwError $ "Directory -> " ++ val ++ " <- already exist"
 
 execRemove :: String -> TreeMonad ()
 execRemove val = do
@@ -90,6 +117,19 @@ execRemove val = do
     Just _ ->
       modify (\(x, y) -> (removeFromTree (x, y) delElementPath, y))
       
+execShowInfo :: String -> TreeMonad BS.ByteString
+execShowInfo val = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let elementPath = curPath ++ "/" ++ val
+  case hasNext (curPath ++ "/" ++ val) (children curTree) of
+    Nothing ->
+     throwError $ "File or directory -> " ++ val ++ " <- not exist"
+    Just _ ->
+      return $ showTreeInfo tree elementPath
+
 execFindFile :: String -> TreeMonad BS.ByteString
 execFindFile val = do
   pair <- get
@@ -102,8 +142,8 @@ execFindFile val = do
   else return res
 
 
-execAddText :: String -> String -> TreeMonad ()
-execAddText val text = do
+execAddText :: UTCTime -> String -> String -> TreeMonad ()
+execAddText curTime val text = do
   pair <- get
   let tree = fst pair
   let curPath = snd pair
@@ -112,7 +152,7 @@ execAddText val text = do
   case hasNext (curPath ++ "/" ++ val) (children curTree) of
     Nothing -> throwError $ "File -> " ++ val ++ " <- not exist"
     Just File{..} ->
-      modify (\(x, y) -> (modifyFile (x, y) elemPath text, y))
+      modify (\(x, y) -> (modifyFile curTime (x, y) elemPath text, y))
     Just Dir{..} ->
       throwError $ "Directory -> "
                    ++ val

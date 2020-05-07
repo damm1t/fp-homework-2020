@@ -10,6 +10,7 @@ import qualified DirParser as CD
 import qualified FileParser as FP
 import Options.Applicative (getParseResult)
 import qualified Data.ByteString.Char8 as BS
+import Data.Time.Clock (getCurrentTime)
 
 commandsParser :: (FilesTree, FilePath) -> IO ()
 commandsParser ini = do
@@ -20,10 +21,7 @@ commandsParser ini = do
   case command of
     "exit" -> putStrLn "stopping"
     "cd" -> makeCD ini [unwords args]
-    "dir" ->
-      do
-        DT.tui ini
-        commandsParser ini
+    
     "ls" -> makeLS ini [unwords args]
     "cat" -> openFile ini args
     "fail" -> commandsParser ini
@@ -31,6 +29,11 @@ commandsParser ini = do
     "find-file" -> findFile ini args
     "create-folder" -> createFolder ini [unwords args]
     "remove" -> removeElement ini [unwords args]
+    "information" -> comandShowInfo ini args
+    "dir" ->
+          do
+            DT.tui ini
+            commandsParser ini
     "write-file" ->
       do
         let (fileName:last) = args
@@ -107,9 +110,10 @@ openFile ini args = do
 createFile :: (FilesTree, FilePath) -> [String] -> IO ()
 createFile ini args = do
   let res = FP.parse "File" args
+  curTime <- getCurrentTime
   case getParseResult res of
    Just FP.Params{..} ->
-     case runExcept (runStateT (FP.execCreateFile name) ini) of
+     case runExcept (runStateT (FP.execCreateFile curTime name) ini) of
        Right pr -> commandsParser $ snd pr
        Left msg ->
          do
@@ -152,12 +156,32 @@ removeElement ini args = do
        FP.printFail res
        commandsParser ini
 
+comandShowInfo :: (FilesTree, FilePath) -> [String] -> IO ()
+comandShowInfo ini args = do
+  let res = FP.parse "Tree" args
+  case getParseResult res of
+   Just FP.Params{..} ->
+     case runExcept (runStateT (FP.execShowInfo name) ini) of
+       Right pr ->
+         do
+           FT.tui $ fst pr
+           commandsParser ini
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       FP.printFail res
+       commandsParser ini
+
 writeToFile :: (FilesTree, FilePath) -> [String] -> IO ()
 writeToFile ini args = do
+  curTime <- getCurrentTime
   let res = FP.parseWithText args
   case getParseResult res of
    Just FP.ParamsFile{..} ->
-     case runExcept (runStateT (FP.execAddText fileName addText) ini) of
+     case runExcept (runStateT (FP.execAddText curTime fileName addText) ini) of
        Right pr -> commandsParser $ snd pr
        Left msg ->
          do
