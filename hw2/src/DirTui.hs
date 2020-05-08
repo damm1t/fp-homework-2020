@@ -49,10 +49,11 @@ data SimpleTree = SDir { name :: String }
 toTree :: FilesTree -> SimpleTree
 toTree d@Dir{..} = SDir $ getTreeName d
 toTree f@File{..} = SFile $ getTreeName f
+toTree _ = undefined
 
 buildInitialState :: (FilesTree, FilePath) -> IO TuiState
 buildInitialState (tree, path) = do
-  let here = map toTree (children $ getCurrentTree tree path)
+  let here = map toTree (filter isTree (children $ getCurrentTree tree path))
   let msg = ExitMsg "Press Q to quit"
   pure TuiState {tuiStatePaths = sort here ++ [msg]}
 

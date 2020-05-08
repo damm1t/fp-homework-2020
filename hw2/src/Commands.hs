@@ -11,6 +11,7 @@ import qualified FileParser as FP
 import Options.Applicative (getParseResult)
 import qualified Data.ByteString.Char8 as BS
 import Data.Time.Clock (getCurrentTime)
+import PrintFileSystem
 
 commandsParser :: (FilesTree, FilePath) -> IO ()
 commandsParser ini = do
@@ -19,7 +20,7 @@ commandsParser ini = do
   input <- getLine
   (command:args) <- getArgs input
   case command of
-    "exit" -> putStrLn "stopping"
+    "exit" -> exit ini
     "cd" -> makeCD ini [unwords args]
     
     "ls" -> makeLS ini [unwords args]
@@ -30,10 +31,21 @@ commandsParser ini = do
     "create-folder" -> createFolder ini [unwords args]
     "remove" -> removeElement ini [unwords args]
     "information" -> comandShowInfo ini [unwords args]
-    "dir" ->
+    "cvs-init" -> initCVS ini
+    "cvs-add" -> addFileToCVS ini [unwords args]
+    "cvs-update" ->
+      do
+        let (fileName:other) = args
+        let suffixArgs = BS.pack $ unwords other
+        if BS.length suffixArgs > 1 && BS.head suffixArgs == '"' && BS.last suffixArgs == '"' then
           do
-            DT.tui ini
-            commandsParser ini
+            let nameVersion = BS.unpack $ BS.tail $ BS.init suffixArgs
+            addVersion ini (fileName : [nameVersion])
+        else addVersion ini [fileName]
+    "dir" ->
+      do
+        DT.tui ini
+        commandsParser ini
     "write-file" ->
       do
         let (fileName:other) = args
@@ -191,7 +203,25 @@ writeToFile ini args = do
      do
        FP.printFail res
        commandsParser ini
-       
+
+addVersion :: (FilesTree, FilePath) -> [String] -> IO ()
+addVersion ini args = do
+  let res = FP.parseWithText args
+  case getParseResult res of
+   Just FP.ParamsFile{..} ->
+     case runExcept (runStateT (FP.execAddVersion fileName addText) ini) of
+       Right pr -> do
+          printFT 0 (fst $ snd pr)
+          commandsParser $ snd pr
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       FP.printFail res
+       commandsParser ini
+
 findFile :: (FilesTree, FilePath) -> [String] -> IO ()
 findFile ini args = do
   let res = FP.parse "File" args
@@ -210,3 +240,27 @@ findFile ini args = do
       do
         FP.printFail res
         commandsParser ini
+
+initCVS :: (FilesTree, FilePath) -> IO ()
+initCVS ini = case runExcept (runStateT (FP.execInitCVS "cvs") ini) of
+                     Right pr -> commandsParser $ snd pr
+                     Left msg
+                       -> do putStrLn msg
+                             commandsParser ini
+
+
+addFileToCVS :: (FilesTree, FilePath) -> [String] -> IO ()
+addFileToCVS ini args = do
+  let res = FP.parse "Tree" args
+  case getParseResult res of
+   Just FP.Params{..} ->
+     case runExcept (runStateT (FP.execAddCVS name) ini) of
+       Right pr -> commandsParser $ snd pr
+       Left msg ->
+         do
+           putStrLn msg
+           commandsParser ini
+   Nothing ->
+     do
+       FP.printFail res
+       commandsParser ini

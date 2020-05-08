@@ -48,6 +48,7 @@ execRead val = do
     Just File{..} -> return fileData
     Just Dir{..} ->
       throwError $ "Directory -> " ++ val ++ " <- is not a file"
+    Just _ -> throwError $ "Unavailable name -> " ++ val ++ " <-"
 
 createFileInfo :: FilePath -> String -> FileInfo
 createFileInfo = undefined
@@ -77,6 +78,8 @@ execCreateFile curTime val = do
       -> throwError $ "File -> " ++ val ++ " <-  already exist"
     Just Dir {..}
       -> throwError $ "Directory -> " ++ val ++ " <- already exist"
+    Just _
+      -> throwError $ "Unavailable name -> " ++ val ++ " <-"
 
 execCreateFolder :: String -> TreeMonad ()
 execCreateFolder val = 
@@ -103,6 +106,8 @@ execCreateFolder val =
          -> throwError $ "File -> " ++ val ++ " <-  already exist"
        Just Dir {..}
          -> throwError $ "Directory -> " ++ val ++ " <- already exist"
+       Just _
+         -> throwError $ "Unavailable name -> " ++ val ++ " <-"
 
 execRemove :: String -> TreeMonad ()
 execRemove val = do
@@ -157,3 +162,56 @@ execAddText curTime val text = do
       throwError $ "Directory -> "
                    ++ val
                    ++ " <- already exist. Please enter file name"
+    Just _ ->
+          throwError $ "Unavailable name -> "
+                       ++ val ++ " <-"
+
+execAddVersion :: String -> String -> TreeMonad ()
+execAddVersion val version = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let elemPath = curPath ++ "/" ++ val
+  case hasNext elemPath (children curTree) of
+   Nothing -> throwError $ "File -> " ++ val ++ " <- not exist"
+   Just File{..} -> if hasCVSFile elemPath (children curTree) then
+                      modify (\(x, y) -> (findCVSDir (x, y) elemPath version, y))
+                    else throwError $ "File -> " ++ val ++ " <- not added at CVS"
+
+   Just _ ->
+         throwError $ "Unavailable File name -> "
+                      ++ val ++ " <-"
+
+execInitCVS :: String -> TreeMonad ()
+execInitCVS val =
+  do pair <- get
+     let tree = fst pair
+     let curPath = snd pair
+     let curTree = getCurrentTree tree curPath
+     let resPath = curPath ++ "/" ++ val
+     let cvs
+           = CVS
+               { path = resPath
+               , versionsInfo = []
+               }
+     case hasNext (curPath ++ "/" ++ val) (children curTree) of
+       Nothing -> modify (\ (x, y) -> (addCVS (x, y) cvs, y))
+       Just _
+         -> throwError $ "CVS init fail: -> " ++ val ++ " <-  already exist"
+
+execAddCVS :: String -> TreeMonad ()
+execAddCVS val = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let elemPath = curPath ++ "/" ++ val
+  let cvs = curPath ++ "/cvs"
+  case hasNext cvs (children curTree) of
+    Nothing -> throwError "CVS not initialized"
+    Just _ -> case hasNext elemPath (children curTree) of
+                Nothing ->
+                  throwError $ "File or directory -> " ++ val ++ " <- not exist"
+                Just _ ->
+                  modify (\(x, y) -> (addCVSFile (x, y) elemPath, y))

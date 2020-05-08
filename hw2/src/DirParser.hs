@@ -36,11 +36,13 @@ execCommand val = do
       do
         let curTree = getCurrentTree tree curPath
         case hasNext (curPath ++ "/" ++ val) (children curTree) of
-          Nothing -> throwError $ "-> " ++ val ++ " <- Dirictory not exist"
           Just Dir{..} -> modify (\(x, y) -> (x, y ++ "/" ++ val))
           Just File{..} -> throwError $ "File -> " ++ val ++ " <- is not a diretory"
+          _ -> throwError $ "-> " ++ val ++ " <- Dirictory not exist"
+
 
 printFail :: ParserResult a -> IO()
 printFail (Failure failure) = do
   let (msg, exit) = renderFailure failure ""
   putStrLn msg
+printFail _ = undefined 

@@ -11,7 +11,24 @@ import Control.Monad.Except (Except)
 import qualified Data.ByteString.Char8 as BS
 import Data.Time
 import Utils
+
 type TreeMonad = (StateT (FilesTree, FilePath) (Except String))
+
+data FilesTree = File { path :: FilePath
+                      , fileData :: BS.ByteString
+                      , fileInfo :: FileInfo
+                      }
+               | Dir { path :: FilePath
+                     , children  :: [FilesTree]
+                     , dirInfo :: DirInfo
+                     } 
+               | CVS { path :: FilePath
+                     , versionsInfo :: [CVSInfo]
+                     } deriving (Eq, Show)
+                     
+data CVSInfo = CVSInfo { curPath :: FilePath
+                       , listFiles :: [(String, BS.ByteString)]
+                       } deriving (Eq, Show)   
 
 data FileInfo = FileInfo { filePath :: FilePath
                          , filePerm :: Permissions
@@ -59,6 +76,7 @@ getCountFiles = foldr (\ tree res -> getFilesInside tree + res) 0
     getFilesInside :: FilesTree -> Int
     getFilesInside File{..} = 1
     getFilesInside Dir{..} = getCountFiles children
+    getFilesInside _ = 0
 
 updateDirInfo :: DirInfo -> [FilesTree] -> DirInfo
 updateDirInfo oldInfo children = oldInfo { dirSize = getDirSize children
@@ -70,30 +88,32 @@ getDirSize = foldr (\ tree res -> res + getTreeSize tree) 0
 getTreeSize :: FilesTree -> Int
 getTreeSize Dir{..} = getDirSize children
 getTreeSize File{..} = fileSize fileInfo
+getTreeSize _ = 0
 
 getTreePerm :: FilesTree -> Permissions
 getTreePerm Dir{..} = dirPerm dirInfo
 getTreePerm File{..} = filePerm fileInfo
-
-data FilesTree = File { path :: FilePath
-                      , fileData :: BS.ByteString
-                      , fileInfo :: FileInfo
-                      }
-               | Dir { path :: FilePath
-                     , children  :: [FilesTree]
-                     , dirInfo :: DirInfo
-                     } deriving (Eq, Show)
+getTreePerm _ = undefined
 
 isDir :: FilesTree -> Bool
 isDir Dir{..} = True
-isDir File{..} = False
+isDir _ = False
 
 isFile :: FilesTree -> Bool
-isFile = not . isDir
+isFile File{..} = True
+isFile _ = False
+
+isTree :: FilesTree -> Bool
+isTree CVS{..} = False
+isTree _ = True
+
+isCVS :: FilesTree -> Bool
+isCVS = not . isTree
 
 getTreeName :: FilesTree -> FilePath
 getTreeName Dir{..} = takeBaseName path
 getTreeName File{..} = takeFileName path
+getTreeName CVS{..} = "cvs"
 
 getCurrentTree :: FilesTree -> FilePath -> FilesTree
 getCurrentTree curTree@Dir{..} fPath
@@ -103,7 +123,7 @@ getCurrentTree _ _ = undefined
 
 -- executable tree functions
 
-addToTree ::  (FilesTree, FilePath) -> FilesTree -> FilesTree
+addToTree :: (FilesTree, FilePath) -> FilesTree -> FilesTree
 addToTree (curTree, curDir) file
   | path curTree == curDir =
     do
@@ -118,6 +138,19 @@ addToTree (curTree, curDir) file
               , dirInfo = updateDirInfo (dirInfo curTree) newChildren
               }
   | otherwise = curTree
+  
+addCVS :: (FilesTree, FilePath) -> FilesTree -> FilesTree
+addCVS  (curTree, curDir) cvs 
+  | path curTree == curDir =
+    do
+      let newChildren = children curTree ++ [cvs]
+      curTree { children = newChildren }
+  | isDir curTree && path curTree `isPrefixOf` curDir = 
+    do
+      let newChildren = map (\ child -> addCVS (child, curDir) cvs) (children curTree)
+      curTree { children = newChildren }
+  | otherwise = curTree
+
 
 removeFromTree :: (FilesTree, FilePath) -> FilePath -> FilesTree
 removeFromTree (curTree, curDir) file
@@ -139,6 +172,36 @@ removeFromTree (curTree, curDir) file
     removeChild _ [] = []
     removeChild x (y:ys) | x == path y = removeChild x ys
                         | otherwise = y : removeChild x ys
+                        
+addCVSFile :: (FilesTree, FilePath) -> FilePath -> FilesTree
+addCVSFile (curTree, curDir) file
+  | path curTree == curDir = 
+    do
+      let curFileData = getFileData file (children curTree)
+      let newChildren = addFile curFileData file (children curTree)
+      curTree { children = newChildren }
+  | isDir curTree && path curTree `isPrefixOf` curDir = 
+    do
+      let newChildren = map (\child -> addCVSFile (child, curDir) file) (children curTree)
+      curTree { children = newChildren }
+  | otherwise = curTree
+  where
+    addFile :: BS.ByteString -> FilePath -> [FilesTree] -> [FilesTree]
+    addFile _ _ [] = []
+    addFile curFileData curPath (x:xs)
+      | isCVS x = (x {versionsInfo = versionsInfo x
+                                       ++
+                                         [CVSInfo
+                                            {curPath = getCVSFileName x curPath,
+                                             listFiles = [("initial", curFileData)]}]})
+                    : xs
+      | otherwise = x:addFile curFileData curPath xs
+    
+getFileData :: FilePath -> [FilesTree] -> BS.ByteString
+getFileData _ [] = BS.empty
+getFileData curPath (x:xs) 
+  | curPath == path x = fileData x
+  | otherwise = getFileData curPath xs
 
 showTreeInfo :: FilesTree -> FilePath -> BS.ByteString
 showTreeInfo curTree curPath
@@ -170,6 +233,7 @@ showTreeInfo curTree curPath
          , "File last modified time: " ++ show (fileTime fileInfo) ++ "\n"
          , show (filePerm fileInfo) ++ "\n"
          ]
+    printInfo _ = []
 
 
 modifyFile :: UTCTime -> (FilesTree, FilePath) -> FilePath -> String -> FilesTree
@@ -188,6 +252,33 @@ modifyFile curTime (curTree, curDir) file text
               }
   | otherwise = curTree
 
+findCVSDir :: (FilesTree, FilePath) -> FilePath -> String -> FilesTree
+findCVSDir (curTree, curPath) fPath versionName 
+  | curPath == path curTree = modifyCVSFile curTree fPath  versionName
+  | isDir curTree && path curTree `isPrefixOf` curPath = 
+        do
+          let newChildren = map (\child -> findCVSDir (child, curPath) fPath versionName) (children curTree)
+          curTree { children = newChildren }
+  | otherwise = curTree
+
+modifyCVSFile :: FilesTree -> FilePath -> String -> FilesTree
+modifyCVSFile curTree file versionName = 
+  do
+    let curData = getFileData file (children curTree)
+    curTree { children = modifyCVSChildren (versionName, curData) file (children curTree) }
+
+modifyCVSChildren :: (String, BS.ByteString) -> FilePath -> [FilesTree] -> [FilesTree]
+modifyCVSChildren _  _ [] = []
+modifyCVSChildren version curFilePath (x:xs)
+  | isCVS x = (x {versionsInfo = addFileVersion version (getCVSFileName x curFilePath) (versionsInfo x) }):xs
+  | otherwise = x : modifyCVSChildren version curFilePath xs
+  where
+    addFileVersion :: (String, BS.ByteString) -> FilePath -> [CVSInfo] -> [CVSInfo]
+    addFileVersion version fPath [] = []
+    addFileVersion version fPath (y:ys)
+      | curPath y == fPath = (y {listFiles = listFiles y ++ [version]}):ys
+      | otherwise = y : addFileVersion version fPath ys
+
 getNext :: FilePath -> [FilesTree] -> FilesTree
 getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
                           then
@@ -202,8 +293,25 @@ hasNext fPath (tr:xs) = if path tr == fPath
                         then Just tr
                         else hasNext fPath xs
 
+getCVSFileName :: FilesTree -> FilePath -> FilePath
+getCVSFileName x curPath = path x ++ "/" ++ takeFileName curPath
+
+hasCVSFile :: FilePath -> [FilesTree] -> Bool
+hasCVSFile _ [] = False
+hasCVSFile curFilePath (x:xs)
+  | isCVS x = hasFileInCVS (getCVSFileName x curFilePath) (versionsInfo x)
+  | otherwise = hasCVSFile curFilePath xs
+  where
+    hasFileInCVS :: FilePath -> [CVSInfo] -> Bool
+    hasFileInCVS _ [] = False
+    hasFileInCVS fPath (y:ys) 
+      |  curPath y == fPath = True
+      | otherwise = hasFileInCVS fPath ys
+                                
+
 findFileWithRes :: FilesTree -> FilePath -> BS.ByteString
 findFileWithRes File{} _ = BS.empty
+findFileWithRes CVS{} _ = BS.empty
 findFileWithRes curTree@Dir{} name = mapper (children curTree)
   where
     mapper :: [FilesTree] -> BS.ByteString
@@ -217,8 +325,7 @@ findFileWithRes curTree@Dir{} name = mapper (children curTree)
             if path curTree ++ "/" ++ name == path child then
                 addStrToBS (path child  ++ "\n") bs
             else
-                bs
-                                                  
+                bs                               
 
 printFT :: Int -> FilesTree -> IO()
 printFT cnt File{..}  = do
@@ -227,4 +334,5 @@ printFT cnt File{..}  = do
 printFT cnt Dir{..}  = do
   putStrLn $ duplicate "-" cnt ++ ">" ++ path
   forM_ children (printFT (cnt + 1))
+printFT cnt CVS{..}  = putStrLn $ duplicate "-" cnt ++ ">" ++ path ++ show versionsInfo
 

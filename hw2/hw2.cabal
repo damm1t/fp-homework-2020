@@ -18,7 +18,9 @@ tested-with:         GHC == 8.0.1
 
 library
   hs-source-dirs:      src
-  exposed-modules:     FileDirectory, Lib, Commands, DirTui, FileTui, DirParser, FileParser, ReadFileSystem, Utils
+  exposed-modules:     FileDirectory, Lib, Commands,
+                       DirTui, FileTui, DirParser, FileParser,
+                       ReadFileSystem, Utils, PrintFileSystem
   ghc-options:         -Wall
   build-depends:       base >= 4.9 && < 5
                      , directory
