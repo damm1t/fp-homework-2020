@@ -38,7 +38,11 @@ tree = Dir { path = "/root"
            , dirInfo = DirInfo { dirPath = "/root"
                                , dirSize = 12
                                , dirCount = 1
-                               , dirPerm = SI.Permissions {SI.readable = True, SI.writable = True, SI.executable = False, SI.searchable = True}
+                               , dirPerm = SI.Permissions { SI.readable = True
+                                                          , SI.writable = True
+                                                          , SI.executable = False
+                                                          , SI.searchable = True
+                                                          }
                                }
            }
 
@@ -47,7 +51,11 @@ tree2 = Dir { path = "/root"
            , dirInfo = DirInfo { dirPath = "/root"
                                , dirSize = 25
                                , dirCount = 2
-                               , dirPerm = SI.Permissions {SI.readable = True, SI.writable = True, SI.executable = False, SI.searchable = True}
+                               , dirPerm = SI.Permissions { SI.readable = True
+                                                          , SI.writable = True
+                                                          , SI.executable = False
+                                                          , SI.searchable = True
+                                                          }
                                }
            }
 fdSpec :: SpecWith ()
