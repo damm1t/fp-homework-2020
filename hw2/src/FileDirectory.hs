@@ -2,7 +2,7 @@
 
 module FileDirectory where
 
-import System.Directory(Permissions, getPermissions, getModificationTime)
+import System.Directory(Permissions)
 import Control.Monad.Cont (forM_)
 import System.FilePath.Posix
 import Data.List (isPrefixOf)
@@ -14,62 +14,71 @@ import Utils
 
 type TreeMonad = (StateT (FilesTree, FilePath) (Except String))
 
-data FilesTree = File { path :: FilePath
-                      , fileData :: BS.ByteString
-                      , fileInfo :: FileInfo
-                      }
-               | Dir { path :: FilePath
-                     , children  :: [FilesTree]
-                     , dirInfo :: DirInfo
-                     } 
-               | CVS { path :: FilePath
-                     , versionsInfo :: [CVSInfo]
-                     } deriving (Eq, Show)
+data FilesTree 
+  -- | 'File' constructor implement file type object
+  = File { -- | 'path' field stores full path to 'File'
+           path :: FilePath,
+           -- | 'fileData' stores text of 'File' in 'ByteString'
+           fileData :: BS.ByteString,
+           -- | 'fileInfo' stores 'File' information
+           fileInfo :: FileInfo
+         }
+  -- | 'Dir' constructor implement folder type object
+  | Dir { -- | 'path' field stores full path to 'Dir'
+          path :: FilePath,
+          -- | 'children' field stores 'Dir' content
+          children  :: [FilesTree],
+          -- | 'dirInfo' field stores 'Dir' information
+          dirInfo :: DirInfo
+        } 
+  -- | 'CVS' constructor implement cvs file type object
+  | CVS { -- | 'path' field stores full path to 'CVS'
+          path :: FilePath,
+          -- | versionsInfo field stores 'CVS' file content
+          versionsInfo :: [CVSInfo]
+        } deriving (Eq, Show)
                      
-data CVSInfo = CVSInfo { curPath :: FilePath
-                       , listFiles :: [(String, BS.ByteString)]
-                       } deriving (Eq, Show)   
+data CVSInfo 
+  -- | 'CVSInfo' constructor implement cvs file information
+  = CVSInfo { -- | 'curPath' field stores full path to file at 'CVSInfo'
+              curPath :: FilePath,
+              -- | 'listFiles' field stores list of versions file
+              listFiles :: [(String, BS.ByteString)]
+            } deriving (Eq, Show)   
 
-data FileInfo = FileInfo { filePath :: FilePath
-                         , filePerm :: Permissions
-                         , ext :: String
-                         , fileTime :: UTCTime
-                         , fileSize :: Int
-                         } deriving (Eq, Show)
+data FileInfo 
+  -- | 'FileInfo' constructor implement file information
+  = FileInfo { -- | 'filePath' field stores full path to file
+               filePath :: FilePath,
+               -- | 'filePerm' field stores full permissions of file
+               filePerm :: Permissions,
+               -- | 'ext' field stores type of file
+               ext :: String,
+               -- | 'fileTime' field stores file's last modification time
+               fileTime :: String,
+               -- | 'fileSize' field stores file size in Bytes
+               fileSize :: Int
+             } deriving (Eq, Show)
 
-getFileInfo :: FilePath -> BS.ByteString -> IO FileInfo
-getFileInfo curPath text = do
-  curPerm <- getPermissions curPath
-  time <- getModificationTime curPath
-  return $ FileInfo
-            curPath
-            curPerm
-            (takeExtension curPath)
-            time
-            (BS.length text)
-            
+data DirInfo
+  -- | 'DirInfo' constructor implement folder information
+  = DirInfo { -- | 'dirPath' field stores full path to folder
+              dirPath :: FilePath,
+              -- | 'dirPerm' field stores full permissions of folder
+              dirPerm :: Permissions,
+              -- | 'dirSize' field stores folder size in Bytes
+              dirSize :: Int,
+              -- | 'dirCount' field stores count files at folder
+              dirCount :: Int
+            } deriving (Eq, Show)
+
+-- | 'updateFileInfo' function update input 'FileInfo' with new time and text      
 updateFileInfo :: FileInfo -> UTCTime -> BS.ByteString -> FileInfo
-updateFileInfo oldInfo curTime newText = oldInfo { fileTime = curTime
+updateFileInfo oldInfo curTime newText = oldInfo { fileTime = show curTime
                                                  , fileSize = BS.length newText
                                                  }
 
-data DirInfo = DirInfo { dirPath :: FilePath
-                       , dirPerm :: Permissions
-                       , dirSize :: Int
-                       , dirCount :: Int
-                       } deriving (Eq, Show)
-
-getDirInfo :: FilePath  -> [FilesTree] -> IO DirInfo
-getDirInfo curPath children = do
-  curPerm <- getPermissions curPath
-  return $ DirInfo
-            curPath
-            curPerm
-            (getDirSize children)
-            (getCountFiles children)
-
-
-
+-- | 'getCountFiles' function returns count of files in folder content
 getCountFiles :: [FilesTree] -> Int
 getCountFiles = foldr (\ tree res -> getFilesInside tree + res) 0
   where
@@ -78,13 +87,17 @@ getCountFiles = foldr (\ tree res -> getFilesInside tree + res) 0
     getFilesInside Dir{..} = getCountFiles children
     getFilesInside _ = 0
 
+-- | 'updateDirInfo' function update folder info with new content
 updateDirInfo :: DirInfo -> [FilesTree] -> DirInfo
 updateDirInfo oldInfo children = oldInfo { dirSize = getDirSize children
                                          , dirCount = getCountFiles children
                                          }
+
+-- | 'getDirSize' function returns size of folder content
 getDirSize :: [FilesTree] -> Int
 getDirSize = foldr (\ tree res -> res + getTreeSize tree) 0
 
+-- | 'getTreeSize' function returns size of 'FilesTree'
 getTreeSize :: FilesTree -> Int
 getTreeSize Dir{..} = getDirSize children
 getTreeSize File{..} = fileSize fileInfo
@@ -123,6 +136,7 @@ getCurrentTree _ _ = undefined
 
 -- executable tree functions
 
+-- | 'addToTree' function adds new 'FilesTree' to file system
 addToTree :: (FilesTree, FilePath) -> FilesTree -> FilesTree
 addToTree (curTree, curDir) file
   | path curTree == curDir =
@@ -139,6 +153,7 @@ addToTree (curTree, curDir) file
               }
   | otherwise = curTree
   
+-- | 'addCVS' function initialize new cvs 'FilesTree' to file system
 addCVS :: (FilesTree, FilePath) -> FilesTree -> FilesTree
 addCVS  (curTree, curDir) cvs 
   | path curTree == curDir =
@@ -151,7 +166,7 @@ addCVS  (curTree, curDir) cvs
       curTree { children = newChildren }
   | otherwise = curTree
 
-
+-- | 'removeFromTree' function remove 'FilesTree' from file system
 removeFromTree :: (FilesTree, FilePath) -> FilePath -> FilesTree
 removeFromTree (curTree, curDir) file
   | path curTree == curDir = 
@@ -172,7 +187,8 @@ removeFromTree (curTree, curDir) file
     removeChild _ [] = []
     removeChild x (y:ys) | x == path y = removeChild x ys
                         | otherwise = y : removeChild x ys
-                        
+         
+-- | 'addCVSFile' function add new cvs 'FilesTree' to file system               
 addCVSFile :: (FilesTree, FilePath) -> FilePath -> FilesTree
 addCVSFile (curTree, curDir) file
   | path curTree == curDir = 
@@ -197,6 +213,7 @@ addCVSFile (curTree, curDir) file
                     : xs
       | otherwise = x:addFile curFileData curPath xs
     
+-- | 'removeCVSFile' function remove cvs 'FilesTree' from file system    
 removeCVSFile :: (FilesTree, FilePath) -> FilePath -> FilesTree
 removeCVSFile (curTree, curDir) file
   | path curTree == curDir = 
@@ -220,13 +237,14 @@ removeCVSFile (curTree, curDir) file
       | curPath y == rPath = ys
       | otherwise = y:remCVSFile rPath ys
 
-
+-- | 'getFileData' function get file content
 getFileData :: FilePath -> [FilesTree] -> BS.ByteString
 getFileData _ [] = BS.empty
 getFileData curPath (x:xs) 
   | curPath == path x = fileData x
   | otherwise = getFileData curPath xs
 
+-- | 'showTreeInfo' function return 'FilesTree' information
 showTreeInfo :: FilesTree -> FilePath -> BS.ByteString
 showTreeInfo curTree curPath
   | path curTree == curPath = 
@@ -259,7 +277,7 @@ showTreeInfo curTree curPath
          ]
     printInfo _ = []
 
-
+-- | 'modifyFile' function modify file with new content in file system
 modifyFile :: UTCTime -> (FilesTree, FilePath) -> FilePath -> String -> FilesTree
 modifyFile curTime (curTree, curDir) file text
   | path curTree == file = 
@@ -323,6 +341,7 @@ getNext fPath (next:xs) = if isDir next && isPrefixOf (path next) fPath
                             getNext fPath xs
 getNext _ [] = undefined
 
+-- | 'hasNext' function returns 'FilesTree' from list with current path
 hasNext :: FilePath -> [FilesTree] -> Maybe FilesTree
 hasNext _ [] = Nothing
 hasNext fPath (tr:xs) = if path tr == fPath

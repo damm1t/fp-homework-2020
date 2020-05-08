@@ -41,7 +41,6 @@ executable hw2
   build-depends:       base
                      , hw2
                      , optparse-applicative
-                     , hspec
                      , split
                      , directory
                      , filepath
@@ -53,13 +52,20 @@ executable hw2
 test-suite doctests
   type:             exitcode-stdio-1.0
   main-is: Spec.hs
-  build-depends:
-      base
-    , hspec
-    , QuickCheck
-    , hw2
+  build-depends:       base
+                     , hspec
+                     , QuickCheck
+                     , hw2
+                     , optparse-applicative
+                     , split
+                     , directory
+                     , filepath
+                     , bytestring
+                     , time
+                     , brick
+                     , vty
   other-modules:
-        TestUtils
+        TestUtils, TestFileDirectory
   ghc-options:      -Wall -threaded
   hs-source-dirs:   test
   default-language: Haskell2010

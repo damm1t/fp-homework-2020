@@ -81,7 +81,7 @@ execCreateFile curTime val = do
                           { filePath = resPath
                           , filePerm = curPerm
                           , ext = takeExtension resPath
-                          , fileTime = curTime
+                          , fileTime = show curTime
                           , fileSize = 0
                           }
              }
