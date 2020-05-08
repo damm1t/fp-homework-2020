@@ -50,6 +50,19 @@ execRead val = do
       throwError $ "Directory -> " ++ val ++ " <- is not a file"
     Just _ -> throwError $ "Unavailable name -> " ++ val ++ " <-"
 
+execOpenCVSFile :: String -> TreeMonad BS.ByteString
+execOpenCVSFile val = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  case hasNext (curPath ++ "/" ++ val) (children curTree) of
+    Nothing -> throwError $ "File -> " ++ val ++ " <-  not exist"
+    Just File{..} -> return fileData
+    Just Dir{..} ->
+      throwError $ "Directory -> " ++ val ++ " <- is not a file"
+    Just _ -> throwError $ "Unavailable name -> " ++ val ++ " <-"
+
 createFileInfo :: FilePath -> String -> FileInfo
 createFileInfo = undefined
 
@@ -183,6 +196,18 @@ execAddVersion val version = do
          throwError $ "Unavailable File name -> "
                       ++ val ++ " <-"
 
+execOpenVersion :: String -> String -> TreeMonad BS.ByteString
+execOpenVersion val version = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let elemPath = curPath ++ "/" ++ val
+  if hasCVSFile elemPath (children curTree) then
+    return $ openCVSVersion (children curTree) elemPath version
+  else throwError $ "File -> " ++ val ++ " <- not added at CVS"
+
+
 execInitCVS :: String -> TreeMonad ()
 execInitCVS val =
   do pair <- get
@@ -215,3 +240,15 @@ execAddCVS val = do
                   throwError $ "File or directory -> " ++ val ++ " <- not exist"
                 Just _ ->
                   modify (\(x, y) -> (addCVSFile (x, y) elemPath, y))
+                  
+execRemoveCVS :: String -> TreeMonad ()
+execRemoveCVS val = do
+  pair <- get
+  let tree = fst pair
+  let curPath = snd pair
+  let curTree = getCurrentTree tree curPath
+  let elemPath = curPath ++ "/" ++ val
+  let cvs = curPath ++ "/cvs"
+  case hasNext cvs (children curTree) of
+    Nothing -> throwError "CVS not initialized"
+    Just _ ->  modify (\(x, y) -> (removeCVSFile (x, y) elemPath, y))

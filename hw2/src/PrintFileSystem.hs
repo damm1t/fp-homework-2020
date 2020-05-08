@@ -4,7 +4,6 @@ module PrintFileSystem where
 import qualified Data.ByteString.Char8 as BS
 import FileDirectory
 import System.Directory (removeDirectoryRecursive, createDirectory, setPermissions)
-import Utils (addStrToBS)
 
 exit :: (FilesTree, FilePath) -> IO ()
 exit (curTree, _) = do

@@ -197,6 +197,30 @@ addCVSFile (curTree, curDir) file
                     : xs
       | otherwise = x:addFile curFileData curPath xs
     
+removeCVSFile :: (FilesTree, FilePath) -> FilePath -> FilesTree
+removeCVSFile (curTree, curDir) file
+  | path curTree == curDir = 
+    do
+      let newChildren = removeFile file (children curTree)
+      curTree { children = newChildren }
+  | isDir curTree && path curTree `isPrefixOf` curDir = 
+    do
+      let newChildren = map (\child -> removeCVSFile (child, curDir) file) (children curTree)
+      curTree { children = newChildren }
+  | otherwise = curTree
+  where
+    removeFile :: FilePath -> [FilesTree] -> [FilesTree]
+    removeFile _ [] = []
+    removeFile fPath (x:xs)
+      | isCVS x = (x {versionsInfo = remCVSFile (getCVSFileName x fPath) (versionsInfo x)}): xs
+      | otherwise = x:removeFile fPath xs
+    remCVSFile :: FilePath -> [CVSInfo] -> [CVSInfo]
+    remCVSFile _ [] = []
+    remCVSFile rPath (y:ys)
+      | curPath y == rPath = ys
+      | otherwise = y:remCVSFile rPath ys
+
+
 getFileData :: FilePath -> [FilesTree] -> BS.ByteString
 getFileData _ [] = BS.empty
 getFileData curPath (x:xs) 
@@ -260,6 +284,18 @@ findCVSDir (curTree, curPath) fPath versionName
           let newChildren = map (\child -> findCVSDir (child, curPath) fPath versionName) (children curTree)
           curTree { children = newChildren }
   | otherwise = curTree
+
+openCVSVersion :: [FilesTree] -> FilePath -> String -> BS.ByteString
+openCVSVersion children rPath versionName = BS.concat $ map (`openVersionInfo` rPath) children
+  where
+    openVersionInfo :: FilesTree -> FilePath -> BS.ByteString
+    openVersionInfo curTree fPath 
+      | isCVS curTree = BS.concat $ map (\cur -> openVersion cur (getCVSFileName curTree fPath)) (versionsInfo curTree)
+      | otherwise = BS.empty
+    openVersion :: CVSInfo -> FilePath -> BS.ByteString
+    openVersion cur fPath
+      | curPath cur == fPath = BS.concat $ map (\pr -> if fst pr == versionName then snd pr else BS.empty) (listFiles cur)
+      | otherwise = BS.empty
 
 modifyCVSFile :: FilesTree -> FilePath -> String -> FilesTree
 modifyCVSFile curTree file versionName = 

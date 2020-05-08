@@ -18,8 +18,8 @@ tested-with:         GHC == 8.0.1
 
 library
   hs-source-dirs:      src
-  exposed-modules:     FileDirectory, Lib, Commands,
-                       DirTui, FileTui, DirParser, FileParser,
+  exposed-modules:     FileDirectory, Commands, DirTui,
+                       FileTui, DirParser, FileParser,
                        ReadFileSystem, Utils, PrintFileSystem
   ghc-options:         -Wall
   build-depends:       base >= 4.9 && < 5
@@ -41,9 +41,25 @@ executable hw2
   build-depends:       base
                      , hw2
                      , optparse-applicative
+                     , hspec
                      , split
                      , directory
                      , filepath
                      , bytestring
                      , time
   default-language:    Haskell2010
+
+
+test-suite doctests
+  type:             exitcode-stdio-1.0
+  main-is: Spec.hs
+  build-depends:
+      base
+    , hspec
+    , QuickCheck
+    , hw2
+  other-modules:
+        TestUtils
+  ghc-options:      -Wall -threaded
+  hs-source-dirs:   test
+  default-language: Haskell2010
