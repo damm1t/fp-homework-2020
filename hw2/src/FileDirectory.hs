@@ -2,7 +2,7 @@
 
 module FileDirectory where
 
-import System.Directory(Permissions, getPermissions, getModificationTime, getFileSize)
+import System.Directory(Permissions, getPermissions, getModificationTime)
 import Control.Monad.Cont (forM_)
 import System.FilePath.Posix
 import Data.List (isPrefixOf)
@@ -12,13 +12,6 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Time
 import Utils
 type TreeMonad = (StateT (FilesTree, FilePath) (Except String))
-
--- getPermissions :: FilePath -> IO Permissions
--- setPermissions :: FilePath -> Permissions -> IO ()
--- getModificationTime :: FilePath -> IO UTCTime
--- setModificationTime :: FilePath -> UTCTime -> IO ()
--- getFileSize :: FilePath -> IO Integer
--- takeExtension :: FilePath -> String
 
 data FileInfo = FileInfo { filePath :: FilePath
                          , filePerm :: Permissions
@@ -56,14 +49,23 @@ getDirInfo curPath children = do
             curPath
             curPerm
             (getDirSize children)
-            (length children)
+            (getCountFiles children)
+
+
+
+getCountFiles :: [FilesTree] -> Int
+getCountFiles = foldr (\ tree res -> getFilesInside tree + res) 0
+  where
+    getFilesInside :: FilesTree -> Int
+    getFilesInside File{..} = 1
+    getFilesInside Dir{..} = getCountFiles children
 
 updateDirInfo :: DirInfo -> [FilesTree] -> DirInfo
 updateDirInfo oldInfo children = oldInfo { dirSize = getDirSize children
-                                         , dirCount = length children
+                                         , dirCount = getCountFiles children
                                          }
 getDirSize :: [FilesTree] -> Int
-getDirSize = foldr (\ tree sum -> sum + getTreeSize tree) 0
+getDirSize = foldr (\ tree res -> res + getTreeSize tree) 0
 
 getTreeSize :: FilesTree -> Int
 getTreeSize Dir{..} = getDirSize children
@@ -81,7 +83,7 @@ data FilesTree = File { path :: FilePath
                      , children  :: [FilesTree]
                      , dirInfo :: DirInfo
                      } deriving (Eq, Show)
-                     
+
 isDir :: FilesTree -> Bool
 isDir Dir{..} = True
 isDir File{..} = False
@@ -140,13 +142,34 @@ removeFromTree (curTree, curDir) file
 
 showTreeInfo :: FilesTree -> FilePath -> BS.ByteString
 showTreeInfo curTree curPath
-  | path curTree == curPath = BS.concat $ map BS.pack (printInfo curTree)
-  | isDir curTree && path curTree `isPrefixOf` curPath = BS.concat $ map (`showTreeInfo` curPath) (children curTree) 
+  | path curTree == curPath = 
+    BS.concat $ map BS.pack (printInfo curTree)
+  | isDir curTree && path curTree `isPrefixOf` curPath = 
+    BS.concat $ map (`showTreeInfo` curPath) (children curTree) 
   | otherwise = BS.empty
   where
     printInfo :: FilesTree -> [String]
-    printInfo Dir{..} = [show dirInfo]
-    printInfo File{..} = [show fileInfo]
+    printInfo Dir{..} = do
+        let size = dirSize dirInfo
+        [ "Directory path: " ++ dirPath dirInfo ++ "\n"
+          , "Directory size: " ++ show size
+            ++ " Byte" ++ (if size > 1 then "s\n" else "\n")
+          , "Count files: " ++ show (dirCount dirInfo) ++ "\n"
+          , show (dirPerm dirInfo) ++ "\n"
+          ]
+    printInfo File{..} = do
+       let size = fileSize fileInfo
+       let formatType = if ext fileInfo == "" then
+                            "File has no format\n"
+                        else
+                            "Format type: " ++ ext fileInfo ++ "\n"
+       [ "File path: " ++ filePath fileInfo ++ "\n"
+         , "File size: " ++ show size 
+           ++ " Byte" ++ (if size > 1 then "s\n" else "\n")
+         , formatType
+         , "File last modified time: " ++ show (fileTime fileInfo) ++ "\n"
+         , show (filePerm fileInfo) ++ "\n"
+         ]
 
 
 modifyFile :: UTCTime -> (FilesTree, FilePath) -> FilePath -> String -> FilesTree

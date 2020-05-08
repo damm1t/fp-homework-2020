@@ -29,18 +29,18 @@ commandsParser ini = do
     "find-file" -> findFile ini args
     "create-folder" -> createFolder ini [unwords args]
     "remove" -> removeElement ini [unwords args]
-    "information" -> comandShowInfo ini args
+    "information" -> comandShowInfo ini [unwords args]
     "dir" ->
           do
             DT.tui ini
             commandsParser ini
     "write-file" ->
       do
-        let (fileName:last) = args
-        let suff = BS.pack $ unwords last
-        if BS.length suff > 1 && BS.head suff == '"' && BS.last suff == '"' then
+        let (fileName:other) = args
+        let suffixArgs = BS.pack $ unwords other
+        if BS.length suffixArgs > 1 && BS.head suffixArgs == '"' && BS.last suffixArgs == '"' then
             do
-              let text = BS.unpack $ BS.tail $ BS.init suff
+              let text = BS.unpack $ BS.tail $ BS.init suffixArgs
               writeToFile ini (fileName : [text])
         else writeToFile ini [fileName]
     _ ->

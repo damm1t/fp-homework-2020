@@ -31,7 +31,6 @@ readDir :: FilePath -> IO [FilesTree]
 readDir curPath = do listDirs <- listDirectory curPath
                      traverse (readFS . (\ name -> curPath ++ "/" ++ name)) listDirs
 
-
 testFunc :: IO ()
 testFunc = do
   fs <- readFS rootDir
